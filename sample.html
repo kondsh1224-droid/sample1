@@ -1,0 +1,146 @@
+
+<!DOCTYPE html> <html lang="ja"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <title>簡易投資学習アプリ</title> <style> body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 10px; background-color: #f9f9f9; } h1 { text-align: center; color: #333; } label { display: block; margin-top: 15px; font-weight: bold; } input[type=number] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; } button { margin-top: 15px; padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #0078d7; color: white; border: none; border-radius: 4px; } button:hover { background-color: #005a9e; } .status { margin-top: 20px; padding: 10px; background-color: #e1f0ff; border-radius: 4px; } .error { color: red; margin-top: 10px; } .info { margin-top: 10px; color: #555; } </style> </head> <body> <h1>簡易投資学習アプリ</h1>
+
+<label for="initialFunds">資金を入力してください（円）:</label> <input type="number" id="initialFunds" min="0" step="1000" value="100000" />
+
+<div class="info" id="currentPriceDisplay">現在の株価: -- 円</div>
+
+<label for="buyAmount">購入する株数:</label> <input type="number" id="buyAmount" min="1" step="1" value="1" /> <button id="buyBtn">株を買う</button>
+
+<label for="sellAmount">売却する株数:</label> <input type="number" id="sellAmount" min="1" step="1" value="1" /> <button id="sellBtn">株を売る</button>
+
+<button id="changePriceBtn">株価を変動させる</button>
+
+<div class="status" id="status"></div>
+
+<div class="info" id="portfolio">保有株数: 0 株<br>資金: 0 円</div>
+
+<script> // 初期状態
+let currentPrice = 1000; let funds = 10000; let stocks = 0;
+
+// 購入株数と購入コストの管理
+let totalPurchasedStocks = 0;
+let totalPurchaseCost = 0;
+
+// DOM要素
+const initialFundsInput = document.getElementById('initialFunds');
+const buyAmountInput = document.getElementById('buyAmount');
+const sellAmountInput = document.getElementById('sellAmount');
+const buyBtn = document.getElementById('buyBtn');
+const sellBtn = document.getElementById('sellBtn');
+const changePriceBtn = document.getElementById('changePriceBtn');
+const statusDiv = document.getElementById('status');
+const portfolioDiv = document.getElementById('portfolio');
+const currentPriceDisplay = document.getElementById('currentPriceDisplay');
+
+// 表示更新
+function updateDisplay() {
+  currentPriceDisplay.textContent = `現在の株価: ${currentPrice} 円`;
+  portfolioDiv.innerHTML = `保有株数: ${stocks} 株<br>資金: ${funds.toLocaleString()} 円`;
+}
+
+// 資金入力変更時に資金更新（保有株数は維持）
+initialFundsInput.addEventListener('change', () => {
+  const newFunds = parseInt(initialFundsInput.value, 10);
+  if (!isNaN(newFunds) && newFunds >= 0) {
+    funds = newFunds;
+    updateDisplay();
+    statusDiv.textContent = '';
+    statusDiv.className = '';
+  } else {
+    statusDiv.textContent = '資金は0以上の数字で入力してください。';
+    statusDiv.className = 'error';
+  }
+});
+
+// 株を買う
+buyBtn.addEventListener('click', () => {
+  const buyAmount = parseInt(buyAmountInput.value, 10);
+  if (isNaN(buyAmount) || buyAmount <= 0) {
+    statusDiv.textContent = '購入株数は1以上の数字で入力してください。';
+    statusDiv.className = 'error';
+    return;
+  }
+  const cost = buyAmount * currentPrice;
+  if (cost > funds) {
+    statusDiv.textContent = '資金が不足しています。購入できません。';
+    statusDiv.className = 'error';
+    return;
+  }
+
+  funds -= cost;
+  stocks += buyAmount;
+
+  // 購入株数と購入コストの管理
+  totalPurchasedStocks += buyAmount;
+  totalPurchaseCost += cost;
+
+  statusDiv.textContent = `株を${buyAmount}株購入しました。`;
+  statusDiv.className = '';
+  updateDisplay();
+});
+
+// 株を売る
+sellBtn.addEventListener('click', () => {
+  const sellAmount = parseInt(sellAmountInput.value, 10);
+  if (isNaN(sellAmount) || sellAmount <= 0) {
+    statusDiv.textContent = '売却株数は1以上の数字で入力してください。';
+    statusDiv.className = 'error';
+    return;
+  }
+  if (sellAmount > stocks) {
+    statusDiv.textContent = '保有株数が不足しています。売却できません。';
+    statusDiv.className = 'error';
+    return;
+  }
+
+  // 平均購入単価と損益計算
+  const averageUnitPrice = totalPurchasedStocks > 0 ? totalPurchaseCost / totalPurchasedStocks : currentPrice;
+  const profitLoss = (currentPrice - averageUnitPrice) * sellAmount;
+
+  // 資金と保有株数の更新
+  funds += sellAmount * currentPrice;
+  stocks -= sellAmount;
+
+  // 購入株数と購入コストの調整
+  totalPurchasedStocks -= sellAmount;
+  totalPurchaseCost -= averageUnitPrice * sellAmount;
+
+  // 損益表示
+  if (profitLoss > 0) {
+    statusDiv.textContent = `株を${sellAmount}株売却しました。利益は${profitLoss.toFixed(0)}円です。`;
+  } else if (profitLoss < 0) {
+    statusDiv.textContent = `株を${sellAmount}株売却しました。損失は${(-profitLoss).toFixed(0)}円です。`;
+  } else {
+    statusDiv.textContent = `株を${sellAmount}株売却しました。損益はありません。`;
+  }
+  statusDiv.className = '';
+  updateDisplay();
+});
+
+// 株価を変動させる
+let changeCount = 0;
+const maxChangeCount = 10;
+
+function fluctuatePrice() {
+  // 変動幅は-30%〜+30%
+  const changePercent = Math.random() * 60 - 30;
+  const changeAmount = Math.round(currentPrice * (changePercent / 100));
+  currentPrice = Math.max(1, currentPrice + changeAmount);
+}
+
+changePriceBtn.addEventListener('click', () => {
+  if (changeCount >= maxChangeCount) {
+    statusDiv.textContent = `株価変動は最大${maxChangeCount}回までです。`;
+    statusDiv.className = 'error';
+    return;
+  }
+  fluctuatePrice();
+  changeCount++;
+  updateDisplay();
+  statusDiv.textContent = `株価が変動しました。現在の株価は${currentPrice}円です。（${changeCount}/${maxChangeCount}回）`;
+  statusDiv.className = '';
+});
+
+updateDisplay();
+</script> </body> </html>
